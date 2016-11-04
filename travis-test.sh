@@ -78,7 +78,7 @@ echo "$LINE" | grep -q 112 || exit 1 # Check PRIORITY
 
 echo
 echo "nslookup"
-sleep 15
+sleep 30
 LOOKUP=`nslookup -type=srv $TMP_DOMAIN`
 echo "$LOOKUP"
 echo "$LOOKUP" | grep -q test.srv.record. || exit 1 # Check content
