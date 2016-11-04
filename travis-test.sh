@@ -24,6 +24,7 @@ echo "$LINE" | grep -q 914 || exit 1 # Check TTL
 
 echo
 echo "nslookup"
+sleep 10
 LOOKUP=`nslookup $TMP_DOMAIN`
 echo "$LOOKUP"
 echo "$LOOKUP" | grep -q 127.1.2.3 || exit 1
@@ -50,6 +51,7 @@ echo "$LINE" | grep -q 112 || exit 1 # Check PRIORITY
 
 echo
 echo "nslookup"
+sleep 10
 LOOKUP=`nslookup -type=mx $TMP_DOMAIN`
 echo "$LOOKUP"
 echo "$LOOKUP" | grep -q test.mx.record. || exit 1
@@ -76,6 +78,7 @@ echo "$LINE" | grep -q 112 || exit 1 # Check PRIORITY
 
 echo
 echo "nslookup"
+sleep 10
 LOOKUP=`nslookup -type=srv $TMP_DOMAIN`
 echo "$LOOKUP"
 echo "$LOOKUP" | grep -q test.srv.record. || exit 1 # Check content
