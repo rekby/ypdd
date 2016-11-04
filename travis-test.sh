@@ -19,6 +19,7 @@ echo "Get record list"
 LINE=`./ypdd $DOMAIN list | grep $TMP_SUBDOMAIN`
 echo "$LINE"
 [ -n "$LINE" ] || exit 1
+echo "$LINE" | grep -q 127.1.2.3 || exit 1 # Check content
 echo "$LINE" | grep -q 914 || exit 1 # Check TTL
 
 echo
@@ -43,6 +44,7 @@ echo "Get record list"
 LINE=`./ypdd $DOMAIN list | grep $TMP_SUBDOMAIN`
 echo "$LINE"
 [ -n "$LINE" ] || exit 1
+echo "$LINE" | grep -q test.mx.record. || exiq 1 # Check content
 echo "$LINE" | grep -q 914 || exit 1 # Check TTL
 echo "$LINE" | grep -q 112 || exit 1 # Check PRIORITY
 
@@ -57,3 +59,30 @@ echo "Del record"
 ID=`echo "$LINE" | cut -d ' ' -f 1`
 ./ypdd $DOMAIN del $ID || exit 1
 
+###########
+### SRV ###
+###########
+echo
+echo "Add SRV"
+./ypdd --ttl 914 $DOMAIN add $TMP_SUBDOMAIN SRV 112 312 1561 test.srv.record. || exit 1
+echo
+echo "Get record list"
+LINE=`./ypdd $DOMAIN list | grep $TMP_SUBDOMAIN`
+echo "$LINE"
+[ -n "$LINE" ] || exit 1
+echo "$LINE" | grep -q test.srv.record. || exit 1 # Check content
+echo "$LINE" | grep -q 914 || exit 1 # Check TTL
+echo "$LINE" | grep -q 112 || exit 1 # Check PRIORITY
+
+echo
+echo "nslookup"
+LOOKUP=`nslookup -type=srv $TMP_DOMAIN`
+echo "$LOOKUP"
+echo "$LOOKUP" | grep -q test.srv.record. || exit 1 # Check content
+echo "$LOOKUP" | grep -q 112 || exit 1 # Check priority
+echo "$LOOKUP" | grep -q 312 || exit 1 # Check weight
+echo "$LOOKUP" | grep -q 1561 || exit 1 # Check port
+
+echo "Del record"
+ID=`echo "$LINE" | cut -d ' ' -f 1`
+./ypdd $DOMAIN del $ID || exit 1
