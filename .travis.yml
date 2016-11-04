@@ -1,14 +1,27 @@
-env:
-  global:
-    - secure: "QhjwC8ygwT1GgHyP+C375794zy086kyZYN8lLP0GSu7/MSfkCKa7HzFqVJu1+Qj7iTnlbxAc8BrVFSIDaH41Cn1/mKAQj0AqI/rNXbWoOu6hqBim56MI2FZPc/Y3m5bTpu+rlkfm8RLrcWnHQhueZGlUqgdm+RsU6XQG4zqfibCJDZHO0WYJdb3X0fZ3H2eZl3t0vS97wo4k1RZ+ElWIIk80kJcRgzhgME8RORQCHBG7M9sNSsiDZg/+a/bE/xzUyqJVq9rPhlkV9/MlxnIihbm7a89lQQ05domqosGT+c3ZgAD8ADPNuSIBjIDHoT+afnN9/Zh/isl6eXbhsyxqCZ+u0Q+7SMSH1AjIESinkq7PJ/b7Pmx98vxjzjZ2Ap7vPniOoQ3GsUDAyMyaLlK4bMtd5M6Y15GFFYat1MP31PjIoOmAN0mydLC1syWcbGorN+KrSmAq0RhEPtvgjv1uIGLb1C7JfC1PgtsDf0E+htZ+gffLT6LZMefB/p+frnB0OlYwLf5PoKfqyeJh24kQO0F4qYRbLoBYniXVpIlrMgdyJauI4HcbgeFzEQfvQZBy8tPZ6kHUK5GY8VJfLQ/bIWELHAf0CTBnuVTBGjgHrakHwdFO+WTRVMcd1kyRxgdYXNAzl8/uEVVlhkCCVf33bPoC42kvfF4YHFdA7M+Awi4="
-    - DOMAIN=gitlab-test.1gb.ru
-
 language: go
 go:
-  - 1.2
+  - 1.7
+#  - tip
 
 before_install:
   - sudo apt-get -qq update
   - sudo apt-get install -y dnsutils
 
-script: ./travis-test.sh
+script:
+  - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then bash ./travis-test.sh; fi'
+
+before_deploy:
+  - mkdir release
+  - 'GOARCH=386 GOOS=linux go build -o ypdd; tar -zcf release/ypdd-linux-i386.tar.gz'
+
+deploy:
+	skip_cleanup: true
+	tags: true
+	provider: releases
+	on:
+	  repo: rekby/ypdd
+	  go: 1.7
+	api_key:
+        secure: AUR6257+ZDxMulgJDUvRbEZjN802urZli7nCcJesL1VIoFSiwwDagzV/n8ws/uqdAmi+kdU9rb4bDeQQbpON3WJZAonR7IdiljVuThKgodYpzYEUNk56DQN4Cru8e53FL0jwhfDGXzm0sr5w82tKMdhCCPcYZwvAMouzw7GLNHnX4geWlANf4Sk779AOoQim7kz907L74EU86yyyJ788O/ms1xPAk1OI7leg4nh8UGxje88/N+1FHRiQyfN7fJfqRYPigdb/BpIGfRAyXvMNRURZw/Hoi3TH6SCm+EQSM8HygDu1+OGSupa/+pxMLbXksqlZ+o9Uq2gLYOm+/mMZIn9p2P54uzGBdxcdJfjUFAVmY+BoiL3qFHQhaxSXNvHmtgx1QeQYexfvm7NLB7vlDFDZcp/H3MaiGOxYI2eQ3FW8rCq0hYNj5tcVBkFoIwtRXwjuTOEYZGQw2muQ2F0IxTyic5VqDMh7qtc3eDk8TCtDlsjEv28mhypyEL7N5LQnQG67YGmdBZqp1dSRKf0Q5fSjygmCCVyTcir5mMnYxA7CuikePBMhzFFpkdxEJhdzsVNSp9vfisBBJ20tSlrUQ9MmnJCnV4FylY1VY3KVM/BA6iF1l2zpO5WlZSpRa4ehW0mBHgBAUsWGa9Y0vY7wVrU8o9Mv1On6yY2fdiA/sUg=
+    file:
+      - "release/*"
