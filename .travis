@@ -1,0 +1,10 @@
+env:
+  - secure: "QhjwC8ygwT1GgHyP+C375794zy086kyZYN8lLP0GSu7/MSfkCKa7HzFqVJu1+Qj7iTnlbxAc8BrVFSIDaH41Cn1/mKAQj0AqI/rNXbWoOu6hqBim56MI2FZPc/Y3m5bTpu+rlkfm8RLrcWnHQhueZGlUqgdm+RsU6XQG4zqfibCJDZHO0WYJdb3X0fZ3H2eZl3t0vS97wo4k1RZ+ElWIIk80kJcRgzhgME8RORQCHBG7M9sNSsiDZg/+a/bE/xzUyqJVq9rPhlkV9/MlxnIihbm7a89lQQ05domqosGT+c3ZgAD8ADPNuSIBjIDHoT+afnN9/Zh/isl6eXbhsyxqCZ+u0Q+7SMSH1AjIESinkq7PJ/b7Pmx98vxjzjZ2Ap7vPniOoQ3GsUDAyMyaLlK4bMtd5M6Y15GFFYat1MP31PjIoOmAN0mydLC1syWcbGorN+KrSmAq0RhEPtvgjv1uIGLb1C7JfC1PgtsDf0E+htZ+gffLT6LZMefB/p+frnB0OlYwLf5PoKfqyeJh24kQO0F4qYRbLoBYniXVpIlrMgdyJauI4HcbgeFzEQfvQZBy8tPZ6kHUK5GY8VJfLQ/bIWELHAf0CTBnuVTBGjgHrakHwdFO+WTRVMcd1kyRxgdYXNAzl8/uEVVlhkCCVf33bPoC42kvfF4YHFdA7M+Awi4="
+  - DOMAIN=gitlab-test.1gb.ru
+
+language: go
+go:
+  - 1.7
+  - tip
+
+script: ./travis-test.sh
