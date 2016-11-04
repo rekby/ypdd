@@ -1,16 +1,14 @@
 #!/usr/bin/env bash
 
-TMP_SUBDOMAIN="tmp-`date +%Y-%m-%d--%H-%M-%S--%N--$RANDOM$RANDOM`"
+TMP_SUBDOMAIN="tmp-`date +%Y-%m-%d--%H-%M-%S--%N--$RANDOM$RANDOM`.ya"
 TMP_DOMAIN="$TMP_SUBDOMAIN.$DOMAIN"
-
-
 
 go env
 go build -v
 echo "Tmp domain: $TMP_DOMAIN"
 
 echo "Add record"
-./ypdd --ttl 60 $DOMAIN add $TMP_SUBDOMAIN A 127.1.2.3 || exit 1
+./ypdd --ttl 900 $DOMAIN add $TMP_SUBDOMAIN A 127.1.2.3 || exit 1
 
 echo
 echo "Get record list"
