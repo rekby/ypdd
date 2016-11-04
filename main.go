@@ -108,6 +108,13 @@ func add(domain string, args ...string) {
 			return
 		}
 		requestArgs = []string{"domain", domain, "type", recordType, "subdomain", args[0], "priority", args[2], "content", args[3]}
+	case "SRV":
+		if len(args) != 6 {
+			ErrorMessage("MX record need 4 command arguments: subdomain, record type, priority, content")
+			return
+		}
+		requestArgs = []string{"domain", domain, "type", recordType, "subdomain", args[0], "priority", args[2],
+			"weight", args[3], "port", args[4], "target", args[5]}
 	default:
 		if len(args) != 3 {
 			ErrorMessage("Need 3 command arguments: subdomain, record type, content")
