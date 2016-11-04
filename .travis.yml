@@ -1,7 +1,11 @@
 language: go
 go:
   - 1.7
-#  - tip
+  - tip
+
+matrix:
+  allow_failures:
+    - go: tip
 
 before_install:
   - sudo apt-get -qq update
