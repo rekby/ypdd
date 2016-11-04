@@ -12,7 +12,7 @@ script:
 
 before_deploy:
   - mkdir release
-  - 'GOARCH=386 GOOS=linux go build -o ypdd; tar -zcf release/ypdd-linux-i386.tar.gz'
+  - 'GOARCH=386 GOOS=linux go build -o ypdd; tar -zcf release/ypdd-linux-i386.tar.gz ypdd'
 
 deploy:
   skip_cleanup: true
