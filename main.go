@@ -101,16 +101,22 @@ func add(domain string, args ...string) {
 	}
 
 	var requestArgs []string
-	switch recordType := args[1]; recordType {
+	switch recordType := args[1]; strings.ToUpper(recordType) {
+	case "MX":
+		if len(args) != 4 {
+			ErrorMessage("MX record need 4 command arguments: subdomain, record type, priority, content")
+			return
+		}
+		requestArgs = []string{"domain", domain, "type", recordType, "subdomain", args[0], "priority", args[2], "content", args[3]}
 	default:
 		if len(args) != 3 {
 			ErrorMessage("Need 3 command arguments: subdomain, record type, content")
 			return
 		}
 		requestArgs = []string{"domain", domain, "type", recordType, "subdomain", args[0], "content", args[2]}
-		if *TTL != 0 {
-			requestArgs = append(requestArgs, "ttl", strconv.Itoa(*TTL))
-		}
+	}
+	if *TTL != 0 {
+		requestArgs = append(requestArgs, "ttl", strconv.Itoa(*TTL))
 	}
 	respBytes, err := pddRequest(http.MethodPost, "dns/add", requestArgs...)
 	if err != nil {
@@ -134,16 +140,15 @@ func add(domain string, args ...string) {
 	fmt.Println("OK")
 }
 
-func del(domain string, id string){
+func del(domain string, id string) {
 	respBytes, err := pddRequest(http.MethodPost, "dns/del", "domain", domain, "record_id", id)
 	if err != nil {
 		ErrorMessage(err)
 		return
 	}
-	var resp struct{
+	var resp struct {
 		Success string `json:"success"`
 		Error   string `json:"error"`
-
 	}
 	err = json.Unmarshal(respBytes, &resp)
 	if err != nil {
@@ -168,12 +173,12 @@ func list(domain string) {
 		Error   string `json:"error"`
 
 		Records []struct {
-			ID        int    `json:"record_id"`
-			Type      string `json:"type"`
-			TTL       int    `json:"ttl"`
-			Subdomain string `json:"subdomain"`
-			Priority  interface{}    `json:"priority"`
-			Content   string `json:"content"`
+			ID        int         `json:"record_id"`
+			Type      string      `json:"type"`
+			TTL       int         `json:"ttl"`
+			Subdomain string      `json:"subdomain"`
+			Priority  interface{} `json:"priority"`
+			Content   string      `json:"content"`
 		} `json:"records"`
 	}
 	err = json.Unmarshal(respBytes, &resp)
@@ -194,9 +199,6 @@ func list(domain string) {
 		}
 	}
 }
-
-
-
 
 func pddRequest(method string, address string, args ...string) (body []byte, err error) {
 	if len(args)%2 != 0 {

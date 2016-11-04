@@ -7,14 +7,19 @@ go env
 go build -v
 echo "Tmp domain: $TMP_DOMAIN"
 
+#########
+### A ###
+#########
+
 echo "Add record"
-./ypdd --ttl 900 $DOMAIN add $TMP_SUBDOMAIN A 127.1.2.3 || exit 1
+./ypdd --ttl 914 $DOMAIN add $TMP_SUBDOMAIN A 127.1.2.3 || exit 1
 
 echo
 echo "Get record list"
 LINE=`./ypdd $DOMAIN list | grep $TMP_SUBDOMAIN`
 echo "$LINE"
 [ -n "$LINE" ] || exit 1
+echo "$LINE" | grep -q 914 || exit 1 # Check TTL
 
 echo
 echo "nslookup"
@@ -25,3 +30,30 @@ echo "$LOOKUP" | grep -q 127.1.2.3 || exit 1
 echo "Del record"
 ID=`echo "$LINE" | cut -d ' ' -f 1`
 ./ypdd $DOMAIN del $ID || exit 1
+
+##########
+### MX ###
+##########
+
+echo
+echo "Add MX"
+./ypdd --ttl 914 $DOMAIN add $TMP_SUBDOMAIN MX 112 test.mx.record. || exit 1
+echo
+echo "Get record list"
+LINE=`./ypdd $DOMAIN list | grep $TMP_SUBDOMAIN`
+echo "$LINE"
+[ -n "$LINE" ] || exit 1
+echo "$LINE" | grep -q 914 || exit 1 # Check TTL
+echo "$LINE" | grep -q 112 || exit 1 # Check PRIORITY
+
+echo
+echo "nslookup"
+LOOKUP=`nslookup -type=mx $TMP_DOMAIN`
+echo "$LOOKUP"
+echo "$LOOKUP" | grep -q test.mx.record. || exit 1
+echo "$LOOKUP" | grep -q 112 || exit 1 # Check priority
+
+echo "Del record"
+ID=`echo "$LINE" | cut -d ' ' -f 1`
+./ypdd $DOMAIN del $ID || exit 1
+
