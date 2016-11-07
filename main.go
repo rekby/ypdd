@@ -103,6 +103,9 @@ func main() {
 }
 
 func checkRecord(ctx context.Context, record, recordTypeString, value string) bool {
+	// Yandex dns have multiply servers per every ip.
+	// It mean - once good answer doesn't gurantee for next answer will good too.
+	// Becouse sync they servers take some time.
 	for i := 0; i < *CheckPerServer; i++{
 		if !checkRecordOnce(ctx, record, recordTypeString, value) {
 			return false
