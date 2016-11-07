@@ -12,7 +12,7 @@ echo "Tmp domain: $TMP_DOMAIN"
 #########
 
 echo "Add record"
-./ypdd --ttl 914 $DOMAIN add $TMP_SUBDOMAIN A 127.1.2.3 || exit 1
+./ypdd --sync --ttl 914 $DOMAIN add $TMP_SUBDOMAIN A 127.1.2.3 || exit 1
 
 echo
 echo "Get record list"
@@ -24,7 +24,6 @@ echo "$LINE" | grep -q 914 || exit 1 # Check TTL
 
 echo
 echo "nslookup"
-sleep 10
 LOOKUP=`nslookup $TMP_DOMAIN`
 echo "$LOOKUP"
 echo "$LOOKUP" | grep -q 127.1.2.3 || exit 1
@@ -39,7 +38,7 @@ ID=`echo "$LINE" | cut -d ' ' -f 1`
 
 echo
 echo "Add MX"
-./ypdd --ttl 914 $DOMAIN add $TMP_SUBDOMAIN MX 112 test.mx.record. || exit 1
+./ypdd --sync --ttl 914 $DOMAIN add $TMP_SUBDOMAIN MX 112 test.mx.record. || exit 1
 echo
 echo "Get record list"
 LINE=`./ypdd $DOMAIN list | grep $TMP_SUBDOMAIN`
@@ -51,7 +50,6 @@ echo "$LINE" | grep -q 112 || exit 1 # Check PRIORITY
 
 echo
 echo "nslookup"
-sleep 10
 LOOKUP=`nslookup -type=mx $TMP_DOMAIN`
 echo "$LOOKUP"
 echo "$LOOKUP" | grep -q test.mx.record. || exit 1
@@ -66,7 +64,7 @@ ID=`echo "$LINE" | cut -d ' ' -f 1`
 ###########
 echo
 echo "Add SRV"
-./ypdd --ttl 914 $DOMAIN add $TMP_SUBDOMAIN SRV 112 312 1561 test.srv.record. || exit 1
+./ypdd --sync --ttl 914 $DOMAIN add $TMP_SUBDOMAIN SRV 112 312 1561 test.srv.record. || exit 1
 echo
 echo "Get record list"
 LINE=`./ypdd $DOMAIN list | grep $TMP_SUBDOMAIN`
@@ -78,7 +76,6 @@ echo "$LINE" | grep -q 112 || exit 1 # Check PRIORITY
 
 echo
 echo "nslookup"
-sleep 30
 LOOKUP=`nslookup -type=srv $TMP_DOMAIN`
 echo "$LOOKUP"
 echo "$LOOKUP" | grep -q test.srv.record. || exit 1 # Check content

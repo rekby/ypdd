@@ -1,16 +1,19 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/miekg/dns"
 	"io/ioutil"
+	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
-	"context"
 	"time"
 )
 
@@ -19,7 +22,7 @@ var (
 	TokenEnv = flag.String("tokenenv", "YANDEX_PDD_TOKEN", "Name of env val for get OAuth token")
 	TTL      = flag.Int("ttl", 0, "TTL for add/edit record. 0 mean default yandex value (doesn't send)")
 	Timeout  = flag.Int("timeout", 60, "Max time execution time, include result waiting (in seconds). Zero mean infinite.")
-	Async    = flag.Bool("async", false, "Return without wait of command apply to dns server.")
+	Sync     = flag.Bool("sync", false, "Wait while record will really add to dns servers.")
 )
 
 var (
@@ -30,7 +33,7 @@ func main() {
 	ctx := context.Background()
 	if *Timeout > 0 {
 		var cancelFunc context.CancelFunc
-		ctx, cancelFunc = context.WithTimeout(ctx, time.Duration(*Timeout) * time.Second)
+		ctx, cancelFunc = context.WithTimeout(ctx, time.Duration(*Timeout)*time.Second)
 		defer cancelFunc()
 	}
 
@@ -48,7 +51,35 @@ func main() {
 	domain := flag.Arg(0)
 	switch cmd := flag.Arg(1); cmd {
 	case "add":
-		add(ctx, domain, flag.Args()[2:]...)
+		added := add(ctx, domain, flag.Args()[2:]...)
+		if added {
+			if *Sync {
+				subdomain := flag.Arg(2)
+				record := subdomain + "." + domain
+				if !strings.HasSuffix(record, ".") {
+					record += "."
+				}
+				recordType := flag.Arg(3)
+				value := flag.Arg(flag.NArg() - 1)
+				deadline, hasDeadline := ctx.Deadline()
+				for {
+					if checkRecord(ctx, record, recordType, value) {
+						break
+					} else {
+						if ctx.Err() != nil {
+							ErrorMessage("Timeout")
+							break
+						}
+						if !hasDeadline || time.Now().Add(time.Second).Before(deadline) {
+							time.Sleep(time.Second)
+						}
+					}
+				}
+			}
+			if ExitCode == 0 {
+				fmt.Println("OK")
+			}
+		}
 	case "list":
 		list(ctx, domain)
 	case "del":
@@ -67,6 +98,105 @@ func main() {
 	os.Exit(ExitCode)
 }
 
+func checkRecord(ctx context.Context, record, recordTypeString, value string) bool {
+	recordType := dns.StringToType[strings.ToUpper(recordTypeString)]
+	if recordType == dns.TypeNone {
+		log.Println("Unknow record type:", recordTypeString)
+		return false
+	}
+
+	ch := make(chan bool, 2)
+	go func() { ch <- checkRecordOnServer(ctx, "dns1.yandex.ru:53", recordType, record, value) }()
+	go func() { ch <- checkRecordOnServer(ctx, "dns2.yandex.ru:53", recordType, record, value) }()
+	for i := 0; i < 2; i++ {
+		if <-ch == false {
+			return false
+		}
+	}
+	return true
+}
+
+func checkRecordOnServer(ctx context.Context, server string, recordType uint16, record, value string) bool {
+	deadline, hasDeadline := ctx.Deadline()
+	var conn *dns.Conn
+	var err error
+	if hasDeadline {
+		conn, err = dns.DialTimeout("udp", server, deadline.Sub(time.Now()))
+		if err == nil {
+			conn.SetDeadline(deadline)
+		}
+	} else {
+		conn, err = dns.Dial("udp", server)
+	}
+	if err != nil {
+		log.Printf("Can't dial to dns server '%v': %v\n", server, err)
+		return false
+	}
+	if ctx.Err() != nil {
+		log.Printf("checkRecordOnServer, context cancelled: %v\n", ctx.Err())
+		return false
+	}
+
+	msg := &dns.Msg{}
+	msg.Id = dns.Id()
+	msg.Question = []dns.Question{dns.Question{record, recordType, dns.ClassINET}}
+
+	if err = conn.WriteMsg(msg); err != nil {
+		log.Printf("Can't write query to dns server '%v':%v\n", server, err)
+		return false
+	}
+	if ctx.Err() != nil {
+		log.Printf("checkRecordOnServer, context cancelled: %v\n", ctx.Err())
+		return false
+	}
+
+	answer, err := conn.ReadMsg()
+	if err != nil {
+		log.Printf("Can't read answer from dns server '%v': %v\n", server, err)
+		return false
+	}
+	if answer.Id != msg.Id {
+		log.Println("Bad answer id")
+		return false
+	}
+
+	for _, r := range answer.Answer {
+		if r.Header().Rrtype != recordType {
+			continue
+		}
+		var res bool
+		switch recordType {
+		case dns.TypeA:
+			res = r.(*dns.A).A.Equal(net.ParseIP(value))
+		case dns.TypeAAAA:
+			res = r.(*dns.AAAA).AAAA.Equal(net.ParseIP(value))
+		case dns.TypeCNAME:
+			res = r.(*dns.CNAME).Target == value
+		case dns.TypeMX:
+			res = r.(*dns.MX).Mx == value
+		case dns.TypeNS:
+			res = r.(*dns.NS).Ns == value
+		case dns.TypeSRV:
+			res = r.(*dns.SRV).Target == value
+		case dns.TypeTXT:
+			for _, txt := range r.(*dns.TXT).Txt {
+				if txt == value {
+					res = true
+					break
+				}
+			}
+		default:
+			log.Printf("Can't cpecific check for record type '%v', check it by contains substring '%v' in record: %v\n",
+				dns.TypeToString[recordType], value, r.String())
+			res = strings.Contains(r.String(), value)
+		}
+		if res {
+			return true
+		}
+	}
+	return false
+}
+
 func Usage() {
 	fmt.Printf(`%[0]v [options] domain command args
 
@@ -74,7 +204,7 @@ The command return code 0 for success and non 0 for error.
 
 Commands:
 	add subdomain TYPE [PRIORITY - for MX and SRV] [WEIGHT - for SRV] [PORT - for SRV] VALUE
-	    TYPE - A, AAAA, CNAME, MX, NS, SOA, SRV, TXT
+	    TYPE - A, AAAA, CNAME, MX, NS, SRV, TXT
             output:
                 OK - for succesfull add record.
                 ERROR: error message - for error.
@@ -108,10 +238,10 @@ func ErrorMessage(mess ...interface{}) {
 	}
 }
 
-func add(ctx context.Context, domain string, args ...string) {
+func add(ctx context.Context, domain string, args ...string) bool {
 	if len(args) < 3 {
 		ErrorMessage("Command add need more argumants")
-		return
+		return false
 	}
 
 	var requestArgs []string
@@ -119,20 +249,20 @@ func add(ctx context.Context, domain string, args ...string) {
 	case "MX":
 		if len(args) != 4 {
 			ErrorMessage("MX record need 4 command arguments: subdomain, record type, priority, content")
-			return
+			return false
 		}
 		requestArgs = []string{"domain", domain, "type", recordType, "subdomain", args[0], "priority", args[2], "content", args[3]}
 	case "SRV":
 		if len(args) != 6 {
 			ErrorMessage("MX record need 4 command arguments: subdomain, record type, priority, content")
-			return
+			return false
 		}
 		requestArgs = []string{"domain", domain, "type", recordType, "subdomain", args[0], "priority", args[2],
 			"weight", args[3], "port", args[4], "target", args[5]}
 	default:
 		if len(args) != 3 {
 			ErrorMessage("Need 3 command arguments: subdomain, record type, content")
-			return
+			return false
 		}
 		requestArgs = []string{"domain", domain, "type", recordType, "subdomain", args[0], "content", args[2]}
 	}
@@ -142,7 +272,7 @@ func add(ctx context.Context, domain string, args ...string) {
 	respBytes, err := pddRequest(ctx, http.MethodPost, "dns/add", requestArgs...)
 	if err != nil {
 		ErrorMessage(err.Error())
-		return
+		return false
 	}
 
 	var resp struct {
@@ -152,13 +282,13 @@ func add(ctx context.Context, domain string, args ...string) {
 	err = json.Unmarshal(respBytes, &resp)
 	if err != nil {
 		ErrorMessage("Parse PDD answer: %v", err)
-		return
+		return false
 	}
 	if resp.Success != "ok" {
 		ErrorMessage(resp.Error)
-		return
+		return false
 	}
-	fmt.Println("OK")
+	return true
 }
 
 func del(ctx context.Context, domain string, id string) {
