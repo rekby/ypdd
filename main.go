@@ -100,6 +100,15 @@ func main() {
 }
 
 func checkRecord(ctx context.Context, record, recordTypeString, value string) bool {
+	for i := 0; i < 10; i++{
+		if !checkRecordOnce(ctx, record, recordTypeString, value) {
+			return false
+		}
+	}
+	return true
+}
+
+func checkRecordOnce(ctx context.Context, record, recordTypeString, value string) bool {
 	recordType := dns.StringToType[strings.ToUpper(recordTypeString)]
 	if recordType == dns.TypeNone {
 		log.Println("Unknow record type:", recordTypeString)
