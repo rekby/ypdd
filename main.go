@@ -129,9 +129,9 @@ func checkRecordOnce(ctx context.Context, record, recordTypeString, value string
 func checkRecordOnServer(ctx context.Context, server string, recordType uint16, record, value string) bool {
 	client := &dns.Client{}
 	client.Net = "tcp"
-	client.DialTimeout = time.Second / 10
-	client.ReadTimeout = time.Second / 10
-	client.WriteTimeout = time.Second / 10
+	client.DialTimeout = time.Second
+	client.ReadTimeout = time.Second
+	client.WriteTimeout = time.Second
 
 	msg := &dns.Msg{}
 	msg.Id = dns.Id()
