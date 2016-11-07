@@ -1,0 +1,11 @@
+{
+	"ImportPath": "github.com/rekby/ypdd",
+	"GoVersion": "go1.7",
+	"GodepVersion": "v74",
+	"Deps": [
+		{
+			"ImportPath": "github.com/miekg/dns",
+			"Rev": "7e024ce8ce18b21b475ac6baf8fa3c42536bf2fa"
+		}
+	]
+}
