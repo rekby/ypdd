@@ -63,6 +63,7 @@ func main() {
 				value := flag.Arg(flag.NArg() - 1)
 				deadline, hasDeadline := ctx.Deadline()
 				for {
+					log.Println("Check record")
 					if checkRecord(ctx, record, recordType, value) {
 						break
 					} else {
@@ -164,6 +165,7 @@ func checkRecordOnServer(ctx context.Context, server string, recordType uint16, 
 		if r.Header().Rrtype != recordType {
 			continue
 		}
+		log.Println(r.String())
 		var res bool
 		switch recordType {
 		case dns.TypeA:
