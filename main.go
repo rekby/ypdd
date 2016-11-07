@@ -23,6 +23,9 @@ var (
 	TTL      = flag.Int("ttl", 0, "TTL for add/edit record. 0 mean default yandex value (doesn't send)")
 	Timeout  = flag.Int("timeout", 60, "Max time execution time, include result waiting (in seconds). Zero mean infinite.")
 	Sync     = flag.Bool("sync", false, "Wait while record will really add to dns servers.")
+	CheckInterval = flag.Int("check-interval", 1, "Pause between check records in sync mode.")
+	CheckPerServer = flag.Int("request-times", 10, "How many times check every server for every check in sync mode.")
+	DNSNetwork = flag.String("dns-network", "tcp", "Check dns records by tcp or udp in sync mode.")
 )
 
 var (
@@ -71,7 +74,7 @@ func main() {
 							ErrorMessage("Timeout")
 							break
 						}
-						if !hasDeadline || time.Now().Add(time.Second).Before(deadline) {
+						if !hasDeadline || time.Now().Add(time.Second * *CheckInterval).Before(deadline) {
 							time.Sleep(time.Second)
 						}
 					}
@@ -100,7 +103,7 @@ func main() {
 }
 
 func checkRecord(ctx context.Context, record, recordTypeString, value string) bool {
-	for i := 0; i < 10; i++{
+	for i := 0; i < *CheckPerServer; i++{
 		if !checkRecordOnce(ctx, record, recordTypeString, value) {
 			return false
 		}
@@ -128,7 +131,7 @@ func checkRecordOnce(ctx context.Context, record, recordTypeString, value string
 
 func checkRecordOnServer(ctx context.Context, server string, recordType uint16, record, value string) bool {
 	client := &dns.Client{}
-	client.Net = "tcp"
+	client.Net = *DNSNetwork
 	client.DialTimeout = time.Second
 	client.ReadTimeout = time.Second
 	client.WriteTimeout = time.Second
@@ -151,7 +154,6 @@ func checkRecordOnServer(ctx context.Context, server string, recordType uint16, 
 		if r.Header().Rrtype != recordType {
 			continue
 		}
-		log.Println(r.String())
 		var res bool
 		switch recordType {
 		case dns.TypeA:
