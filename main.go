@@ -127,40 +127,17 @@ func checkRecordOnce(ctx context.Context, record, recordTypeString, value string
 }
 
 func checkRecordOnServer(ctx context.Context, server string, recordType uint16, record, value string) bool {
-	deadline, hasDeadline := ctx.Deadline()
-	var conn *dns.Conn
-	var err error
-	if hasDeadline {
-		conn, err = dns.DialTimeout("udp", server, deadline.Sub(time.Now()))
-		if err == nil {
-			conn.SetDeadline(deadline)
-		}
-	} else {
-		conn, err = dns.Dial("udp", server)
-	}
-	if err != nil {
-		log.Printf("Can't dial to dns server '%v': %v\n", server, err)
-		return false
-	}
-	if ctx.Err() != nil {
-		log.Printf("checkRecordOnServer, context cancelled: %v\n", ctx.Err())
-		return false
-	}
+	client := &dns.Client{}
+	client.Net = "tcp"
+	client.DialTimeout = time.Second / 10
+	client.ReadTimeout = time.Second / 10
+	client.WriteTimeout = time.Second / 10
 
 	msg := &dns.Msg{}
 	msg.Id = dns.Id()
-	msg.Question = []dns.Question{dns.Question{record, recordType, dns.ClassINET}}
+	msg.SetQuestion(record, recordType)
 
-	if err = conn.WriteMsg(msg); err != nil {
-		log.Printf("Can't write query to dns server '%v':%v\n", server, err)
-		return false
-	}
-	if ctx.Err() != nil {
-		log.Printf("checkRecordOnServer, context cancelled: %v\n", ctx.Err())
-		return false
-	}
-
-	answer, err := conn.ReadMsg()
+	answer, _, err := client.Exchange(msg, server)
 	if err != nil {
 		log.Printf("Can't read answer from dns server '%v': %v\n", server, err)
 		return false
