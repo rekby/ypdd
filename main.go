@@ -10,12 +10,16 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"context"
+	"time"
 )
 
 var (
 	Token    = flag.String("token", "", "OAuth token for access to domain. Default take from environment variable")
 	TokenEnv = flag.String("tokenenv", "YANDEX_PDD_TOKEN", "Name of env val for get OAuth token")
 	TTL      = flag.Int("ttl", 0, "TTL for add/edit record. 0 mean default yandex value (doesn't send)")
+	Timeout  = flag.Int("timeout", 60, "Max time execution time, include result waiting (in seconds). Zero mean infinite.")
+	Async    = flag.Bool("async", false, "Return without wait of command apply to dns server.")
 )
 
 var (
@@ -23,6 +27,13 @@ var (
 )
 
 func main() {
+	ctx := context.Background()
+	if *Timeout > 0 {
+		var cancelFunc context.CancelFunc
+		ctx, cancelFunc = context.WithTimeout(ctx, time.Duration(*Timeout) * time.Second)
+		defer cancelFunc()
+	}
+
 	flag.Usage = Usage
 	flag.Parse()
 
@@ -37,19 +48,22 @@ func main() {
 	domain := flag.Arg(0)
 	switch cmd := flag.Arg(1); cmd {
 	case "add":
-		add(domain, flag.Args()[2:]...)
+		add(ctx, domain, flag.Args()[2:]...)
 	case "list":
-		list(domain)
+		list(ctx, domain)
 	case "del":
 		if flag.NArg() < 3 {
 			ErrorMessage("Need more arguments")
 			break
 		}
-		del(domain, flag.Arg(2))
+		del(ctx, domain, flag.Arg(2))
 	default:
 		ErrorMessage("Unknown command: %v", cmd)
 	}
 
+	if ctx.Err() != nil {
+		ErrorMessage("Timeout")
+	}
 	os.Exit(ExitCode)
 }
 
@@ -94,7 +108,7 @@ func ErrorMessage(mess ...interface{}) {
 	}
 }
 
-func add(domain string, args ...string) {
+func add(ctx context.Context, domain string, args ...string) {
 	if len(args) < 3 {
 		ErrorMessage("Command add need more argumants")
 		return
@@ -125,7 +139,7 @@ func add(domain string, args ...string) {
 	if *TTL != 0 {
 		requestArgs = append(requestArgs, "ttl", strconv.Itoa(*TTL))
 	}
-	respBytes, err := pddRequest(http.MethodPost, "dns/add", requestArgs...)
+	respBytes, err := pddRequest(ctx, http.MethodPost, "dns/add", requestArgs...)
 	if err != nil {
 		ErrorMessage(err.Error())
 		return
@@ -147,8 +161,8 @@ func add(domain string, args ...string) {
 	fmt.Println("OK")
 }
 
-func del(domain string, id string) {
-	respBytes, err := pddRequest(http.MethodPost, "dns/del", "domain", domain, "record_id", id)
+func del(ctx context.Context, domain string, id string) {
+	respBytes, err := pddRequest(ctx, http.MethodPost, "dns/del", "domain", domain, "record_id", id)
 	if err != nil {
 		ErrorMessage(err)
 		return
@@ -169,8 +183,8 @@ func del(domain string, id string) {
 	fmt.Println("OK")
 }
 
-func list(domain string) {
-	respBytes, err := pddRequest(http.MethodGet, "dns/list", "domain", domain)
+func list(ctx context.Context, domain string) {
+	respBytes, err := pddRequest(ctx, http.MethodGet, "dns/list", "domain", domain)
 	if err != nil {
 		ErrorMessage(err)
 		return
@@ -207,7 +221,7 @@ func list(domain string) {
 	}
 }
 
-func pddRequest(method string, address string, args ...string) (body []byte, err error) {
+func pddRequest(ctx context.Context, method string, address string, args ...string) (body []byte, err error) {
 	if len(args)%2 != 0 {
 		panic("Need pairs arguments: name, value, name, value,...")
 	}
@@ -223,6 +237,7 @@ func pddRequest(method string, address string, args ...string) (body []byte, err
 	}
 	req.Header.Add("PddToken", *Token)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req = req.WithContext(ctx)
 
 	client := http.Client{}
 	client.CheckRedirect = func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse }
