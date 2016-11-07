@@ -74,7 +74,7 @@ func main() {
 							ErrorMessage("Timeout")
 							break
 						}
-						if !hasDeadline || time.Now().Add(time.Second * *CheckInterval).Before(deadline) {
+						if !hasDeadline || time.Now().Add(time.Second * time.Duration(*CheckInterval)).Before(deadline) {
 							time.Sleep(time.Second)
 						}
 					}
